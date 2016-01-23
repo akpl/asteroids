@@ -1,13 +1,13 @@
 package com.kleszcz.krzeszowski;
 
 import com.badlogic.gdx.Game;
-import com.kleszcz.krzeszowski.ui.MenuScreen;
+import com.kleszcz.krzeszowski.ui.MainMenuScreen;
 
 public class Asteroids extends Game {
 	
 	@Override
 	public void create () {
-		setScreen(new MenuScreen(this));
+		setScreen(new MainMenuScreen(this));
 	}
 
 	@Override

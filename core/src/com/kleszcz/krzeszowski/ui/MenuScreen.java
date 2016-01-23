@@ -12,10 +12,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.Image;
-import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.kleszcz.krzeszowski.Asteroids;
@@ -25,41 +22,27 @@ import com.kleszcz.krzeszowski.game.GameScreen;
 import com.kleszcz.krzeszowski.multiplayer.Client;
 import com.kleszcz.krzeszowski.multiplayer.Server;
 
-/**
- * Created by Elimas on 2015-11-20.
- */
-public class MenuScreen implements Screen {
-    private Asteroids asteroids;
-    private Skin skin;
-    private Stage stage;
-    private SpriteBatch batch;
+public abstract class MenuScreen implements Screen {
+    protected Asteroids asteroids;
+    protected Skin skin = new Skin();
+    protected Stage stage = new Stage();
 
     public MenuScreen(Asteroids asteroids) {
-        if (asteroids == null) throw new NullPointerException("asteroids");
         this.asteroids = asteroids;
-    }
-
-    @Override
-    public void show() {
-        batch = new SpriteBatch();
-        stage = new Stage();
-        Gdx.input.setInputProcessor(stage);
-
-        // A skin can be loaded via JSON or defined programmatically, either is fine. Using a skin is optional but strongly
-        // recommended solely for the convenience of getting a texture, region, etc as a drawable, tinted drawable, etc.
-        skin = new Skin();
-
         // Generate a 1x1 white texture and store it in the skin named "white".
-        Pixmap pixmap = new Pixmap(1, 1, Format.RGBA8888);
+        Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
         pixmap.setColor(Color.WHITE);
         pixmap.fill();
         skin.add("white", new Texture(pixmap));
+        skin.add("checkboxOn", new Texture(Gdx.files.internal("check-on.png")));
+        skin.add("checkboxOff", new Texture(Gdx.files.internal("check-off.png")));
 
         // Store the default libgdx font under the name "default".
         skin.add("default", new BitmapFont());
+        skin.add("header", new BitmapFont(Gdx.files.internal("Arial32.fnt")));
 
         // Configure a TextButtonStyle and name it "default". Skin resources are stored by type, so this doesn't overwrite the font.
-        TextButtonStyle textButtonStyle = new TextButtonStyle();
+        TextButton.TextButtonStyle textButtonStyle = new TextButton.TextButtonStyle();
         textButtonStyle.up = skin.newDrawable("white", Color.DARK_GRAY);
         textButtonStyle.down = skin.newDrawable("white", Color.DARK_GRAY);
         textButtonStyle.checked = skin.newDrawable("white", Color.BLUE);
@@ -67,45 +50,35 @@ public class MenuScreen implements Screen {
         textButtonStyle.font = skin.getFont("default");
         skin.add("default", textButtonStyle);
 
-        // Create a table that fills the screen. Everything else will go inside this table.
-        Table table = new Table();
-        table.setFillParent(true);
-        stage.addActor(table);
+        Label.LabelStyle headerTextStyle = new Label.LabelStyle();
+        headerTextStyle.font = skin.getFont("header");
+        skin.add("header", headerTextStyle);
 
-        // Create a button with the "default" TextButtonStyle. A 3rd parameter can be used to specify a name other than "default".
-        final TextButton button = new TextButton("Server", skin);
-        table.add(button);
-        final TextButton button2 = new TextButton("Client", skin);
-        table.add(button2);
+        CheckBox.CheckBoxStyle checkBoxStyle = new CheckBox.CheckBoxStyle();
+        checkBoxStyle.font = skin.getFont("default");
+        checkBoxStyle.checkboxOn = skin.newDrawable("checkboxOn", Color.WHITE);
+        checkBoxStyle.checkboxOff = skin.newDrawable("checkboxOff", Color.GRAY);
+        skin.add("default", checkBoxStyle);
 
-        // Add a listener to the button. ChangeListener is fired when the button's checked state changes, eg when clicked,
-        // Button#setChecked() is called, via a key press, etc. If the event.cancel() is called, the checked state will be reverted.
-        // ClickListener could have been used, but would only fire when clicked. Also, canceling a ClickListener event won't
-        // revert the checked state.
-        button.addListener(new ChangeListener() {
-            public void changed (ChangeEvent event, Actor actor) {
-                Server server = new Server(1234);
-                new Thread(server).start();
-                GameOptions gameOptions = GameOptions.newServer(server);
-                GameScreen gameScreen = new GameScreen(asteroids, gameOptions);
-                server.setSendReceiveDataListener(gameScreen);
-                asteroids.setScreen(gameScreen);
-            }
-        });
+        Label.LabelStyle labelStyle = new Label.LabelStyle();
+        labelStyle.font = skin.getFont("default");
+        skin.add("default", labelStyle);
 
-        button2.addListener(new ChangeListener() {
-            public void changed (ChangeEvent event, Actor actor) {
-                Client client = new Client("127.0.0.1", 1234);
-                new Thread(client).start();
-                GameOptions gameOptions = GameOptions.newClient(client);
-                GameScreen gameScreen = new GameScreen(asteroids, gameOptions);
-                client.setSendReceiveDataListener(gameScreen);
-                asteroids.setScreen(gameScreen);
-            }
-        });
+        TextField.TextFieldStyle textFieldStyle = new TextField.TextFieldStyle();
+        textFieldStyle.font = skin.getFont("default");
+        textFieldStyle.fontColor = Color.FOREST;
+        textFieldStyle.background = skin.newDrawable("white", Color.DARK_GRAY);
+        textFieldStyle.selection  = skin.newDrawable("white", Color.CHARTREUSE);
+        textFieldStyle.cursor     = skin.newDrawable("white", Color.ORANGE);
+        skin.add("default", textFieldStyle);
 
-        // Add an image actor. Have to set the size, else it would be the size of the drawable (which is the 1x1 texture).
-        table.add(new Image(skin.newDrawable("white", Color.RED))).size(64);
+        List.ListStyle listStyle = new List.ListStyle();
+        listStyle.background = skin.newDrawable("white", Color.DARK_GRAY);
+        listStyle.selection = skin.newDrawable("white", Color.LIGHT_GRAY);
+        listStyle.font = skin.getFont("default");
+        listStyle.fontColorSelected = Color.WHITE;
+        listStyle.fontColorUnselected = Color.GREEN;
+        skin.add("default", listStyle);
     }
 
     @Override
