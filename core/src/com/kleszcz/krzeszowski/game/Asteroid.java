@@ -1,8 +1,12 @@
 package com.kleszcz.krzeszowski.game;
 
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Polygon;
 import com.kleszcz.krzeszowski.Utils;
 
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -10,7 +14,7 @@ import java.util.List;
 /**
  * Created by Elimas on 2015-11-21.
  */
-public class Asteroid extends Polygon {
+public class Asteroid extends Polygon implements Serializable {
     private float direction;
     private float speed;
     private float rotationSpeed;
@@ -63,5 +67,26 @@ public class Asteroid extends Polygon {
 
     public int calcScore() {
         return (int)(((getScaleX() + getScaleY() + speed * 5f) / 250f) * 10f);
+    }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        out.defaultWriteObject();
+        out.writeFloat(getX());
+        out.writeFloat(getY());
+        out.writeFloat(getOriginX());
+        out.writeFloat(getOriginY());
+        out.writeFloat(getScaleX());
+        out.writeFloat(getScaleY());
+        out.writeFloat(getRotation());
+        out.writeObject(getVertices());
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        setPosition(in.readFloat(), in.readFloat());
+        setOrigin(in.readFloat(), in.readFloat());
+        setScale(in.readFloat(), in.readFloat());
+        setRotation(in.readFloat());
+        setVertices((float[]) in.readObject());
     }
 }

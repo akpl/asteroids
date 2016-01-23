@@ -12,7 +12,7 @@ import java.util.ArrayList;
 public class Server implements Runnable {
     private SendReceiveDataListener sendReceiveDataListener;
     private int port;
-    private ArrayList<Socket> socketsList = new ArrayList<>();
+    private ArrayList<ClientHandler> clientsList = new ArrayList<>();
 
     public SendReceiveDataListener getSendReceiveDataListener() {
         return sendReceiveDataListener;
@@ -20,6 +20,10 @@ public class Server implements Runnable {
 
     public void setSendReceiveDataListener(SendReceiveDataListener sendReceiveDataListener) {
         this.sendReceiveDataListener = sendReceiveDataListener;
+    }
+
+    public ArrayList<ClientHandler> getClientsList() {
+        return clientsList;
     }
 
     public Server(int port) {
@@ -30,14 +34,15 @@ public class Server implements Runnable {
     public void run() {
         try {
             ServerSocket serverSocket = new ServerSocket(port);
-            serverSocket.setSoTimeout(10000);
             System.out.println("Server started");
             while (true) {
                 Socket socket = serverSocket.accept();
-                socketsList.add(socket);
                 System.out.println("New client connected");
-                new Thread(new ClientHandler(socketsList.size() + 1, socket)).start();
-                Thread.sleep((int)(1000f / 30f));
+                ClientHandler clientHandler = new ClientHandler(this, clientsList.size() + 1, socket);
+                clientsList.add(clientHandler);
+                Thread t = new Thread(clientHandler);
+                t.start();
+                Thread.sleep(10);
             }
         } catch (Exception e) {
             e.printStackTrace();

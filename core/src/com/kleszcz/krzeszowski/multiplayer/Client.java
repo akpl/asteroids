@@ -4,16 +4,24 @@ import com.kleszcz.krzeszowski.SendReceiveDataListener;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.Arrays;
 
 /**
  * Created by Elimas on 2015-12-06.
  */
 public class Client implements Runnable {
     private SendReceiveDataListener sendReceiveDataListener;
-    private int clientId;
-    private String name;
     private String host;
     private int port;
+    private Object lastObject;
+
+    public SendReceiveDataListener getSendReceiveDataListener() {
+        return sendReceiveDataListener;
+    }
+
+    public void setSendReceiveDataListener(SendReceiveDataListener sendReceiveDataListener) {
+        this.sendReceiveDataListener = sendReceiveDataListener;
+    }
 
     public Client(String host, int port) {
         this.host = host;
@@ -24,28 +32,37 @@ public class Client implements Runnable {
     public void run() {
         try {
             Socket socket = new Socket(host, port);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), false);
-            while (true) {
-                String command = in.readLine();
-                String value = in.readLine();
-                try {
-                    processCommand(command, value);
-                } catch (Exception e) {
-                    System.err.println("Error processing command");
-                    e.printStackTrace();
+            ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
+            out.flush();
+            ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+            Runnable receiverRunnable = () -> {
+                while (true) {
+                    try {
+                        Object object = in.readObject();
+                        lastObject = object;
+                        //sendReceiveDataListener.onDataReceived(object);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                    }
                 }
-                Thread.sleep((int)(1000f / 30f));
+            };
+            Thread threadReceiver = new Thread(receiverRunnable);
+            threadReceiver.start();
+            while (true) {
+                Object object = sendReceiveDataListener.sendData();
+                out.writeObject(object);
+                out.flush();
+                out.reset();
+                Thread.sleep(15);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private void processCommand(String command, String value) {
-        switch (command) {
-            case "id": clientId = Integer.parseInt(value); break;
-            default: if (sendReceiveDataListener != null) sendReceiveDataListener.onDataReceived(command, value);
-        }
+    public Object getLastObject() {
+        return lastObject;
     }
 }

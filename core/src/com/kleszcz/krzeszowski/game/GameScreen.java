@@ -15,23 +15,20 @@ import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.actions.MoveToAction;
 import com.badlogic.gdx.utils.ShortArray;
 import com.badlogic.gdx.utils.viewport.FitViewport;
-import com.kleszcz.krzeszowski.Asteroids;
-import com.kleszcz.krzeszowski.GameOptions;
-import com.kleszcz.krzeszowski.Globals;
-import com.kleszcz.krzeszowski.Utils;
+import com.kleszcz.krzeszowski.*;
+import com.kleszcz.krzeszowski.multiplayer.ClientHandler;
 import com.sun.org.apache.xpath.internal.operations.Bool;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Created by Elimas on 2015-11-20.
  * TODO add collision between players and bullets and asteroids
  * TODO add points
  */
-public class GameScreen implements Screen {
+public class GameScreen implements Screen, SendReceiveDataListener {
     private GameOptions gameOptions;
     private Rectangle map = Globals.MAP_BOUNDS;
     private Texture textureHeart = new Texture(Gdx.files.internal("heart.png"));
@@ -44,9 +41,11 @@ public class GameScreen implements Screen {
     private Stage stage;
     private AsteroidsGenerator asteroidsGenerator;
     private Player player;
+    private ArrayList<Player> otherPlayers = new ArrayList<>();
     private ArrayList<Shoot> shootsList;
     private ArrayList<Asteroid> asteroidsList;
     private ArrayList<FloatingScore> scoresList;
+    private ReentrantLock lock = new ReentrantLock();
 
     private InputAdapter inputAdapter = new InputAdapter() {
 
@@ -100,6 +99,8 @@ public class GameScreen implements Screen {
         player = new Player();
         player.setPosition((map.getX() + map.getWidth()) * 0.5f, (map.getY() + map.getHeight()) * 0.5f);
         player.setName("Player");
+        if (gameOptions.isServer()) player.setClientId(0);
+        else player.setClientId(1);
         Background bg = new Background();
         stage.addActor(bg);
         stage.addActor(player);
@@ -115,11 +116,28 @@ public class GameScreen implements Screen {
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
+        if (gameOptions.isServer()) {
+            for (ClientHandler clientHandler : gameOptions.getServer().getClientsList()) {
+                onDataReceived(clientHandler.getLastObject());
+            }
+        } else {
+            onDataReceived(gameOptions.getClient().getLastObject());
+        }
+        lock.lock();
         stage.act(delta);
+        for (Player p : otherPlayers) {
+            p.act(delta);
+        }
         update(delta);
         clearOutside();
         camera.update();
         stage.draw();
+        batch.setProjectionMatrix(camera.combined);
+        batch.begin();
+        for (Player p : otherPlayers) {
+            p.draw(batch, 1);
+        }
+        batch.end();
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         shapeRenderer.setProjectionMatrix(camera.combined);
         shapeRenderer.setColor(Color.WHITE);
@@ -147,6 +165,9 @@ public class GameScreen implements Screen {
         batch.begin();
         Vector3 playerPosition = camera.project(new Vector3(player.getX(), player.getY(), 0));
         player.drawName(batch);
+        for (Player p : otherPlayers) {
+            p.drawName(batch);
+        }
         for (FloatingScore score : scoresList) {
             if (score.getTimeLeft() > 0) score.draw(batch);
         }
@@ -162,6 +183,7 @@ public class GameScreen implements Screen {
                     textureShield.getWidth(), textureShield.getHeight(), false, false);
         }
         batch.end();
+        lock.unlock();
     }
 
     private void update(float delta) {
@@ -283,5 +305,135 @@ public class GameScreen implements Screen {
     @Override
     public void dispose() {
 
+    }
+
+    @Override
+    public Object sendData() {
+        lock.lock();
+        if (gameOptions.isServer()) {
+            GameDataServer data = new GameDataServer();
+            ArrayList<Player> allPlayers = new ArrayList<>();
+            allPlayers.add(player);
+            allPlayers.addAll(otherPlayers);
+            data.setAllPlayers(allPlayers);
+            data.setAsteroids(asteroidsList);
+            lock.unlock();
+            return data;
+        } else {
+            GameDataClient data = new GameDataClient();
+            data.setPlayer(player);
+            lock.unlock();
+            return data;
+        }
+    }
+
+    @Override
+    public void onDataReceived(Object object) {
+        lock.lock();
+        if (gameOptions.isServer()) {
+            if (object instanceof GameDataClient) {
+                GameDataClient data = (GameDataClient) object;
+                boolean playerFound = false;
+                for (int i = 0; i < otherPlayers.size(); i++) {
+                    if (otherPlayers.get(i).getClientId() == data.getPlayer().getClientId()) {
+                        otherPlayers.get(i).copyFrom(data.getPlayer());
+                        playerFound = true;
+                    }
+                }
+                if (!playerFound) {
+                    Player newPlayer = new Player();
+                    newPlayer.copyFrom(data.getPlayer());
+                    otherPlayers.add(newPlayer);
+                }
+            }
+        } else {
+            if (object instanceof GameDataServer) {
+                GameDataServer data = (GameDataServer) object;
+                asteroidsList = data.getAsteroids();
+                ArrayList<Player> allPlayers = data.getAllPlayers();
+                for (Iterator<Player> iterator = allPlayers.iterator(); iterator.hasNext();) {
+                    Player p = iterator.next();
+                    if (player.getClientId() == p.getClientId()) {
+                        //player.copyFrom(p);
+                        iterator.remove();
+                        break;
+                    }
+                }
+                for (Player p : allPlayers) {
+                    boolean playerFound = false;
+                    for (Player p2 : otherPlayers) {
+                        if (p.getClientId() == p2.getClientId()) {
+                            p2.copyFrom(p);
+                            playerFound = true;
+                            break;
+                        }
+                    }
+                    if (!playerFound) {
+                        Player newPlayer = new Player();
+                        newPlayer.copyFrom(p);
+                        otherPlayers.add(newPlayer);
+                    }
+                }
+            }
+        }
+        lock.unlock();
+        /*lock.lock();
+        if (gameOptions.isServer()) {
+            if (object instanceof GameDataClient) {
+                GameDataClient data = (GameDataClient) object;
+                boolean playerFound = false;
+                for (int i = 0; i < otherPlayers.size(); i++) {
+                    if (otherPlayers.get(i).getClientId() == data.getPlayer().getClientId()) {
+                        otherPlayers.get(i).copyFrom(data.getPlayer());
+                        playerFound = true;
+                    }
+                }
+                if (!playerFound) {
+                    Gdx.app.postRunnable(new Runnable() {
+                        @Override
+                        public void run() {
+                            Player newPlayer = new Player();
+                            newPlayer.copyFrom(data.getPlayer());
+                            otherPlayers.add(newPlayer);
+                        }
+                    });
+                }
+            }
+        } else {
+            if (object instanceof GameDataServer) {
+                GameDataServer data = (GameDataServer) object;
+                asteroidsList = data.getAsteroids();
+                ArrayList<Player> allPlayers = data.getAllPlayers();
+                for (Iterator<Player> iterator = allPlayers.iterator(); iterator.hasNext();) {
+                    Player p = iterator.next();
+                    if (player.getClientId() == p.getClientId()) {
+                        //player.copyFrom(p);
+                        iterator.remove();
+                        break;
+                    }
+                }
+                for (Player p : allPlayers) {
+                    boolean playerFound = false;
+                    for (Player p2 : otherPlayers) {
+                        if (p.getClientId() == p2.getClientId()) {
+                            p2.copyFrom(p);
+                            playerFound = true;
+                            break;
+                        }
+                    }
+                    if (!playerFound) {
+                        Gdx.app.postRunnable(new Runnable() {
+                            @Override
+                            public void run() {
+                                Player newPlayer = new Player();
+                                newPlayer.copyFrom(p);
+                                otherPlayers.add(newPlayer);
+                            }
+                        });
+                    }
+                }
+            }
+        }
+        lock.unlock();*/
     }
 }

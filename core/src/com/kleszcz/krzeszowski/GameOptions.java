@@ -38,7 +38,7 @@ public class GameOptions {
 
     public static GameOptions newClient(Client client) {
         GameOptions g = new GameOptions();
-        g.isServer = true;
+        g.isServer = false;
         g.client = client;
         return g;
     }

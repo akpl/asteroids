@@ -87,7 +87,9 @@ public class MenuScreen implements Screen {
                 Server server = new Server(1234);
                 new Thread(server).start();
                 GameOptions gameOptions = GameOptions.newServer(server);
-                asteroids.setScreen(new GameScreen(asteroids, gameOptions));
+                GameScreen gameScreen = new GameScreen(asteroids, gameOptions);
+                server.setSendReceiveDataListener(gameScreen);
+                asteroids.setScreen(gameScreen);
             }
         });
 
@@ -96,7 +98,9 @@ public class MenuScreen implements Screen {
                 Client client = new Client("127.0.0.1", 1234);
                 new Thread(client).start();
                 GameOptions gameOptions = GameOptions.newClient(client);
-                asteroids.setScreen(new GameScreen(asteroids, gameOptions));
+                GameScreen gameScreen = new GameScreen(asteroids, gameOptions);
+                client.setSendReceiveDataListener(gameScreen);
+                asteroids.setScreen(gameScreen);
             }
         });
 
