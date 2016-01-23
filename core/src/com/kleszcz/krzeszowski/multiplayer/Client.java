@@ -40,7 +40,7 @@ public class Client implements Runnable {
                     try {
                         Object object = in.readObject();
                         lastObject = object;
-                        //sendReceiveDataListener.onDataReceived(object);
+                        sendReceiveDataListener.onDataReceived(object);
                     } catch (IOException e) {
                         e.printStackTrace();
                     } catch (ClassNotFoundException e) {

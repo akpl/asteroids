@@ -33,7 +33,7 @@ public class ClientHandler implements Runnable {
                         try {
                             Object object = in.readObject();
                             lastObject = object;
-                            //server.getSendReceiveDataListener().onDataReceived(object);
+                            server.getSendReceiveDataListener().onDataReceived(object);
                         } catch (IOException | ClassNotFoundException e) {
                             e.printStackTrace();
                         }

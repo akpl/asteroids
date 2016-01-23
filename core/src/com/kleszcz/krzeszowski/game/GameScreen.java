@@ -118,10 +118,10 @@ public class GameScreen implements Screen, SendReceiveDataListener {
 
         if (gameOptions.isServer()) {
             for (ClientHandler clientHandler : gameOptions.getServer().getClientsList()) {
-                onDataReceived(clientHandler.getLastObject());
+                onDataReceived2(clientHandler.getLastObject());
             }
         } else {
-            onDataReceived(gameOptions.getClient().getLastObject());
+            onDataReceived2(gameOptions.getClient().getLastObject());
         }
         lock.lock();
         stage.act(delta);
@@ -329,6 +329,10 @@ public class GameScreen implements Screen, SendReceiveDataListener {
 
     @Override
     public void onDataReceived(Object object) {
+
+    }
+
+    public void onDataReceived2(Object object) {
         lock.lock();
         if (gameOptions.isServer()) {
             if (object instanceof GameDataClient) {
