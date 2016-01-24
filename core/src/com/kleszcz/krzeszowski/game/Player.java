@@ -210,14 +210,20 @@ public class Player extends Actor implements Serializable {
 
     @Override
     public void draw(Batch batch, float alpha) {
+        Color old = batch.getColor();
+        batch.setColor(getColor());
         batch.draw(texture, getX() - getOriginX(), getY() - getOriginY(), getOriginX(), getOriginY(), texture.getWidth() * getScaleX(),
                 texture.getHeight() * getScaleY(), getScaleX(), getScaleY(), getRotation(), 0, 0,
                 texture.getWidth(), texture.getHeight(), false, false);
         if (isShieldEnabled()) batch.draw(textureCircle, getX() - textureCircle.getWidth() * 0.5f, getY() - textureCircle.getHeight() * 0.5f);
+        batch.setColor(old);
     }
 
     public void drawName(Batch batch) {
+        Color old = fontName.getColor();
+        fontName.setColor(getColor());
         fontName.draw(batch, getName(), getX() - nameGlyph.width * 0.5f, getY() - getHeight() * 0.5f - 15);
+        fontName.setColor(old);
     }
 
     @Override
@@ -300,9 +306,9 @@ public class Player extends Actor implements Serializable {
         speed = other.speed;
         rotateSpeed = other.rotateSpeed;
         fireInterval = other.fireInterval;
-        fireTimer = other.fireTimer;
+        //fireTimer = other.fireTimer;
         isShieldEnabled = other.isShieldEnabled;
-        shieldTimer = other.shieldTimer;
+        //shieldTimer = other.shieldTimer;
         //isFlyingForward = other.isFlyingForward;
         //isRotatingLeft = other.isRotatingLeft;
         //isRotatingRight = other.isRotatingRight;

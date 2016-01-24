@@ -4,19 +4,18 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.*;
+import com.badlogic.gdx.scenes.scene2d.ui.Label;
+import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.kleszcz.krzeszowski.Asteroids;
-import com.kleszcz.krzeszowski.ui.CreateGameScreen;
-import com.kleszcz.krzeszowski.ui.JoinGameScreen;
 import com.kleszcz.krzeszowski.ui.MainMenuScreen;
 import com.kleszcz.krzeszowski.ui.MenuScreen;
-import com.sun.javaws.Main;
 
-public class GameMenuScreen extends MenuScreen implements Screen {
+public class GameOverScreen extends MenuScreen implements Screen {
     private GameScreen gameScreen;
 
-    public GameMenuScreen(Asteroids asteroids, GameScreen gameScreen) {
+    public GameOverScreen(Asteroids asteroids, GameScreen gameScreen) {
         super(asteroids);
         this.gameScreen = gameScreen;
     }
@@ -35,14 +34,10 @@ public class GameMenuScreen extends MenuScreen implements Screen {
         stage.addActor(table);
 
         table.row().height(100).pad(15);
-        final Label header = new Label("Asteroidy Multiplayer", skin, "header");
+        final Label header = new Label("Game Over", skin, "header");
         table.add(header).expandX();
 
         table.row();
-
-        table.row().width(200).height(50).pad(15);
-        final TextButton returnGameButton = new TextButton("Powrot do gry", skin);
-        table.add(returnGameButton);
 
         table.row().width(200).height(50).pad(15);
         final TextButton returnMainMenuButton = new TextButton("Wyjscie do menu glownego", skin);
@@ -51,12 +46,6 @@ public class GameMenuScreen extends MenuScreen implements Screen {
         table.row().width(200).height(50).pad(15);
         final TextButton quitGameButton = new TextButton("Wyjscie z gry", skin);
         table.add(quitGameButton);
-
-        returnGameButton.addListener(new ChangeListener() {
-            public void changed(ChangeEvent event, Actor actor) {
-                gameScreen.returnToGame();
-            }
-        });
 
         returnMainMenuButton.addListener(new ChangeListener() {
             public void changed(ChangeEvent event, Actor actor) {

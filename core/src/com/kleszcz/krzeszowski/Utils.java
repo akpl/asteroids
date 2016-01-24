@@ -80,7 +80,7 @@ public class Utils {
         actorDest.setScaleX(actorSource.getScaleX());
         actorDest.setScaleY(actorSource.getScaleY());
         actorDest.setRotation(actorSource.getRotation());
-        Color color = actorSource.getColor();
-        actorDest.setColor(color);
+        //Color color = actorSource.getColor();
+        //actorDest.setColor(color);
     }
 }

@@ -54,7 +54,7 @@ public class CreateGameScreen extends MenuScreen {
             public void changed (ChangeEvent event, Actor actor) {
                 Server server = new Server(1234);
                 new Thread(server).start();
-                GameOptions gameOptions = GameOptions.newServer(server);
+                GameOptions gameOptions = GameOptions.newServer(server, "GraczS");
                 GameScreen gameScreen = new GameScreen(asteroids, gameOptions);
                 server.setSendReceiveDataListener(gameScreen);
                 asteroids.setScreen(gameScreen);

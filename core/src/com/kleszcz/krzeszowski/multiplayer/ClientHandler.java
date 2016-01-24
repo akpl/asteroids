@@ -7,6 +7,7 @@ import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
 import java.util.ConcurrentModificationException;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Created by Elimas on 2015-12-06.
@@ -16,6 +17,15 @@ public class ClientHandler implements Runnable {
     private int clientId;
     private Socket socket;
     private Object lastObject;
+    private ReentrantLock writeLock;
+
+    public ReentrantLock getWriteLock() {
+        return writeLock;
+    }
+
+    public void setWriteLock(ReentrantLock writeLock) {
+        this.writeLock = writeLock;
+    }
 
     public ClientHandler(Server server, int clientId, Socket socket) {
         this.server = server;
@@ -44,6 +54,7 @@ public class ClientHandler implements Runnable {
                             if (e instanceof SocketException) {
                                 if (((SocketException) e).getMessage().equals("Connection reset")) {
                                     System.out.println("Connection closed with client: " + clientId);
+                                    lastObject = null;
                                     if (server.getSendReceiveDataListener() instanceof ClientDisconnectListener) {
                                         ((ClientDisconnectListener) server.getSendReceiveDataListener()).clientDisconnect(clientId);
                                     }
@@ -62,19 +73,23 @@ public class ClientHandler implements Runnable {
             Thread threadReceiver = new Thread(receiverRunnable);
             threadReceiver.start();
             while (!socket.isClosed()) {
-                Object object = server.getSendReceiveDataListener().sendData();
-                if (object != null) {
-                    try {
-                        out.writeObject(object);
+                try {
+                    if (writeLock != null) writeLock.lock();
+                    Object object = server.getSendReceiveDataListener().sendData();
+                    if (object != null) out.writeObject(object);
+                    if (writeLock != null) writeLock.unlock();
+                    if (object != null) {
                         out.flush();
+                        Thread.sleep(15);
                         out.reset();
-                    } catch (IOException e) {
-                        if (((SocketException) e).getMessage().equals("Socket closed") || ((SocketException) e).getMessage().equals("Connection reset by peer: socket write error")) break;
-                        else e.printStackTrace();
-                    } catch (ConcurrentModificationException e) {
-                        System.out.println("Concurrent exception");
                     }
-                    Thread.sleep(15);
+                } catch (IOException e) {
+                    if (((SocketException) e).getMessage().equals("Socket closed") || ((SocketException) e).getMessage().equals("Connection reset by peer: socket write error")) break;
+                    else e.printStackTrace();
+                } catch (ConcurrentModificationException e) {
+                    System.out.println("Concurrent exception");
+                } finally {
+                    if (writeLock != null && writeLock.isHeldByCurrentThread()) writeLock.unlock();
                 }
             }
         } catch (InterruptedException | IOException e) {

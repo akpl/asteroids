@@ -52,7 +52,7 @@ public class JoinGameScreen extends MenuScreen {
             public void changed(ChangeEvent event, Actor actor) {
                 Client client = new Client(addressTextField.getText(), 1234);
                 new Thread(client).start();
-                GameOptions gameOptions = GameOptions.newClient(client);
+                GameOptions gameOptions = GameOptions.newClient(client, "Gracz");
                 GameScreen gameScreen = new GameScreen(asteroids, gameOptions);
                 client.setSendReceiveDataListener(gameScreen);
                 asteroids.setScreen(gameScreen);

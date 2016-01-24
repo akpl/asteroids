@@ -8,6 +8,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Created by Elimas on 2015-12-06.
@@ -18,6 +19,18 @@ public class Server implements Runnable {
     private ArrayList<ClientHandler> clientsList = new ArrayList<>();
     private int clientId = 2;
     private ServerSocket serverSocket;
+    private ReentrantLock writeLock;
+
+    public ReentrantLock getWriteLock() {
+        return writeLock;
+    }
+
+    public void setWriteLock(ReentrantLock writeLock) {
+        this.writeLock = writeLock;
+        for (ClientHandler clientHandler : clientsList) {
+            clientHandler.setWriteLock(writeLock);
+        }
+    }
 
     public SendReceiveDataListener getSendReceiveDataListener() {
         return sendReceiveDataListener;
@@ -44,6 +57,7 @@ public class Server implements Runnable {
                 Socket socket = serverSocket.accept();
                 System.out.println("New client connected. Client id: " + clientId);
                 ClientHandler clientHandler = new ClientHandler(this, clientId, socket);
+                clientHandler.setWriteLock(writeLock);
                 clientsList.add(clientHandler);
                 Thread t = new Thread(clientHandler);
                 t.start();

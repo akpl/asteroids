@@ -8,16 +8,39 @@ import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.utils.Align;
 import com.kleszcz.krzeszowski.Utils;
 
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+
 /**
  * Created by Elimas on 2015-11-21.
  */
-public class Shoot extends Actor {
-    private Texture texture = new Texture(Gdx.files.internal("pixel.png"));
-    private Player owner;
+public class Shoot extends Actor implements Serializable {
+    private transient Texture texture = new Texture(Gdx.files.internal("pixel.png"));
+    private transient Player owner;
+    private int clientId;
     private float speed = 10;
+
+    public Player getOwner() {
+        return owner;
+    }
+
+    public void setOwner(Player owner) {
+        this.owner = owner;
+        clientId = owner.getClientId();
+    }
+
+    public int getClientId() {
+        return clientId;
+    }
+
+    public Shoot() {
+
+    }
 
     public Shoot(Player owner) {
         this.owner = owner;
+        clientId = owner.getClientId();
         setScaleX(2);
         setScaleY(5);
         setWidth(texture.getWidth() * getScaleX());
@@ -44,5 +67,47 @@ public class Shoot extends Actor {
         super.act(delta);
         setX(getX() + speed * (float) Math.cos(Math.toRadians(getRotation() + 90)));
         setY(getY() + speed * (float) Math.sin(Math.toRadians(getRotation() + 90)));
+    }
+
+    private void writeObject(ObjectOutputStream out) throws IOException {
+        out.defaultWriteObject();
+        //out.writeUTF(getName());
+        out.writeFloat(getX());
+        out.writeFloat(getY());
+        out.writeFloat(getWidth());
+        out.writeFloat(getHeight());
+        out.writeFloat(getOriginX());
+        out.writeFloat(getOriginY());
+        out.writeFloat(getScaleX());
+        out.writeFloat(getScaleY());
+        out.writeFloat(getRotation());
+        out.writeFloat(getColor().r);
+        out.writeFloat(getColor().g);
+        out.writeFloat(getColor().b);
+        out.writeFloat(getColor().a);
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+        in.defaultReadObject();
+        //setName(in.readUTF());
+        setX(in.readFloat());
+        setY(in.readFloat());
+        setWidth(in.readFloat());
+        setHeight(in.readFloat());
+        setOriginX(in.readFloat());
+        setOriginY(in.readFloat());
+        setScaleX(in.readFloat());
+        setScaleY(in.readFloat());
+        setRotation(in.readFloat());
+        Color color = new Color();
+        color.r = in.readFloat();
+        color.g = in.readFloat();
+        color.b = in.readFloat();
+        color.a = in.readFloat();
+        setColor(color);
+    }
+
+    public void loadLibgdxContent() {
+        texture = new Texture(Gdx.files.internal("pixel.png"));
     }
 }

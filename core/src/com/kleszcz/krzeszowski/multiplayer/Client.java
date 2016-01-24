@@ -8,6 +8,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.Arrays;
 import java.util.ConcurrentModificationException;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Created by Elimas on 2015-12-06.
@@ -18,6 +19,15 @@ public class Client implements Runnable {
     private int port;
     private int clientId;
     private Object lastObject;
+    private ReentrantLock writeLock;
+
+    public ReentrantLock getWriteLock() {
+        return writeLock;
+    }
+
+    public void setWriteLock(ReentrantLock writeLock) {
+        this.writeLock = writeLock;
+    }
 
     public SendReceiveDataListener getSendReceiveDataListener() {
         return sendReceiveDataListener;
@@ -58,7 +68,8 @@ public class Client implements Runnable {
                     } catch (IOException | ClassNotFoundException e) {
                         if (e instanceof SocketException) {
                             if (((SocketException) e).getMessage().equals("Connection reset")) {
-                                System.out.println("Connection closed with client: 1");
+                                System.out.println("Connection closed with server: 1");
+                                lastObject = null;
                                 if (sendReceiveDataListener instanceof ClientDisconnectListener) {
                                     ((ClientDisconnectListener) sendReceiveDataListener).clientDisconnect(1);
                                 }
@@ -88,11 +99,15 @@ public class Client implements Runnable {
             threadReceiver.start();
             while (!socket.isClosed()) {
                 try {
+                    if (writeLock != null) writeLock.lock();
                     Object object = sendReceiveDataListener.sendData();
-                    out.writeObject(object);
-                    out.flush();
-                    out.reset();
-                    Thread.sleep(15);
+                    if (object != null) out.writeObject(object);
+                    if (writeLock != null) writeLock.unlock();
+                    if (object != null) {
+                        out.flush();
+                        Thread.sleep(15);
+                        out.reset();
+                    }
                 } catch (IOException e) {
                     if (((SocketException) e).getMessage().equals("Socket closed") || ((SocketException) e).getMessage().equals("Connection reset by peer: socket write error") || ((SocketException) e).getMessage().equals("Software caused connection abort: socket write error")) {
                         if (!socket.isClosed()) socket.close();
@@ -100,6 +115,8 @@ public class Client implements Runnable {
                     } else e.printStackTrace();
                 } catch (ConcurrentModificationException e) {
                     System.out.println("Concurrent exception");
+                } finally {
+                    if (writeLock != null && writeLock.isHeldByCurrentThread()) writeLock.unlock();
                 }
             }
         } catch (InterruptedException | IOException e) {

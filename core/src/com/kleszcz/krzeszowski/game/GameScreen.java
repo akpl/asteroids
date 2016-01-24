@@ -9,25 +9,20 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.*;
-import com.badlogic.gdx.scenes.scene2d.InputEvent;
-import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.actions.MoveToAction;
-import com.badlogic.gdx.utils.ShortArray;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.kleszcz.krzeszowski.*;
 import com.kleszcz.krzeszowski.multiplayer.ClientHandler;
-import com.kleszcz.krzeszowski.ui.MainMenuScreen;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Created by Elimas on 2015-11-20.
- * TODO add collision between players and bullets and asteroids
- * TODO add points
+ * TODO show points of all players in HUD OK
+ * TODO powerups
+ * TODO send & receive bullets OK
+ * TODO gameover screen OK
  */
 public class GameScreen implements Screen, SendReceiveDataListener, ClientDisconnectListener {
     private GameOptions gameOptions;
@@ -37,7 +32,7 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
     private Asteroids asteroids;
     private SpriteBatch batch;
     private ShapeRenderer shapeRenderer;
-    private BitmapFont font;
+    private BitmapFont font, fontSmall;
     private OrthographicCamera camera;
     private Stage stage;
     private AsteroidsGenerator asteroidsGenerator;
@@ -48,7 +43,9 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
     private ArrayList<FloatingScore> scoresList;
     private ReentrantLock lock = new ReentrantLock();
     GameMenuScreen menu;
+    GameOverScreen gameOverScreen;
     boolean escPressed = false;
+    private ArrayList<Color> colors = new ArrayList<>();
     private InputAdapter inputAdapter = new InputAdapter() {
 
         @Override
@@ -91,26 +88,29 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
         batch = new SpriteBatch();
         shapeRenderer = new ShapeRenderer();
         font = new BitmapFont(Gdx.files.internal("Arial32.fnt"));
+        fontSmall = new BitmapFont(Gdx.files.internal("Arial15.fnt"));
         float w = Gdx.graphics.getWidth();
         float h = Gdx.graphics.getHeight();
-        /*camera = new OrthographicCamera(30, 30 * (h / w));
-        camera.position.set(era.viewportWidth / 2f, camera.viewportHeight / 2f, 0);
-        camera.update();*/
+        colors.add(Color.ORANGE);
+        colors.add(Color.CYAN);
+        colors.add(Color.FOREST);
+        colors.add(Color.ROYAL);
 
         camera = new OrthographicCamera();
         camera.setToOrtho(false, w, h);
-        //camera.zoom = 5.5f;
         FitViewport viewp = new FitViewport(w, h, camera); // change this to your needed viewport
         stage = new Stage(viewp, batch);
         asteroidsGenerator = new AsteroidsGenerator();
 
         player = new Player();
         player.setPosition((map.getX() + map.getWidth()) * 0.5f, (map.getY() + map.getHeight()) * 0.5f);
-        player.setName("Player");
+        player.setName(gameOptions.getPlayerName());
         if (gameOptions.isServer()) {
             player.setClientId(1);
+            gameOptions.getServer().setWriteLock(lock);
         } else {
             player.setClientId(gameOptions.getClient().getClientId());
+            gameOptions.getClient().setWriteLock(lock);
         }
         Background bg = new Background();
         stage.addActor(bg);
@@ -148,6 +148,10 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
         for (Player p : otherPlayers) {
             p.draw(batch, 1);
         }
+        for (Shoot shoot : shootsList) {
+            shoot.act(delta);
+            shoot.draw(batch, 1);
+        }
         batch.end();
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         shapeRenderer.setProjectionMatrix(camera.combined);
@@ -183,6 +187,10 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
             if (score.getTimeLeft() > 0) score.draw(batch);
         }
         font.draw(batch, "Score\r\n" + player.getScore(), 20, camera.viewportHeight - 20);
+        for (Player p : otherPlayers) {
+            fontSmall.setColor(p.getColor());
+            fontSmall.draw(batch, p.getName() + " " + p.getScore(), 20, camera.viewportHeight - 100);
+        }
         font.draw(batch, String.valueOf(player.getLives()), camera.viewportWidth - 28, camera.viewportHeight - 20);
         batch.draw(textureHeart, camera.viewportWidth - 40 - textureHeart.getWidth(), camera.viewportHeight - 20 - textureHeart.getHeight() + 2, 0, 0, textureHeart.getWidth(),
                 textureHeart.getHeight(), 1, 1, 0, 0, 0,
@@ -214,18 +222,39 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
             menu.getStage().draw();
             Gdx.gl.glDisable(GL20.GL_BLEND);
         }
+        if (gameOverScreen != null) {
+            Gdx.graphics.getGL20().glEnable(GL20.GL_BLEND);
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+            shapeRenderer.setColor(new Color(0, 0, 0, 0.2f));
+            shapeRenderer.rect(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+            shapeRenderer.end();
+            gameOverScreen.getStage().act(delta);
+            gameOverScreen.getStage().draw();
+            Gdx.gl.glDisable(GL20.GL_BLEND);
+        }
         lock.unlock();
     }
 
     private void update(float delta) {
         asteroidsGenerator.update(asteroidsList);
         //update bullets
-        if (player.isFiring()) {
-            if (player.canFire()) {
-                player.fire();
-                Shoot shoot = new Shoot(player);
-                stage.addActor(shoot);
-                shootsList.add(shoot);
+        if (gameOptions.isServer()) {
+            if (player.isFiring()) {
+                if (player.canFire()) {
+                    player.fire();
+                    Shoot shoot = new Shoot(player);
+                    shootsList.add(shoot);
+                }
+            }
+            for (Player p : otherPlayers) {
+                if (p.isFiring()) {
+                    if (p.canFire()) {
+                        p.fire();
+                        Shoot shoot = new Shoot(p);
+                        shootsList.add(shoot);
+                    }
+                }
             }
         }
         //clear bullets outside screen
@@ -234,7 +263,6 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
             Shoot shoot = it.next();
             if (shoot.getX() + 3 * shoot.getWidth() < 0 || shoot.getX() - 3 * shoot.getWidth() > camera.viewportWidth ||
                     shoot.getY() + 3 * shoot.getHeight() < 0 || shoot.getY() - 3 * shoot.getHeight() > camera.viewportHeight) {
-                stage.getActors().removeValue(shoot, false);
                 it.remove();
             }
         }
@@ -259,9 +287,14 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                     if (i + 3 < vertices.length - 1) v2.y = vertices[i + 3];
                     if (i + 3 < vertices.length - 1) if (Intersector.intersectSegmentPolygon(v1, v2, asteroid)) {
                         player.setLives(player.getLives() - 1);
-                        player.setPosition(Utils.randomRange((map.getX() + map.getWidth()) * 0.2f, (map.getX() + map.getWidth()) * 0.8f), Utils.randomRange((map.getY() + map.getHeight()) * 0.2f, (map.getY() + map.getHeight()) * 0.8f));
-                        player.setShieldEnabled(true);
-                        player.setShieldTimer(3000);
+                        if (player.getLives() > 0) {
+                            player.setPosition(Utils.randomRange((map.getX() + map.getWidth()) * 0.2f, (map.getX() + map.getWidth()) * 0.8f), Utils.randomRange((map.getY() + map.getHeight()) * 0.2f, (map.getY() + map.getHeight()) * 0.8f));
+                            player.setShieldEnabled(true);
+                            player.setShieldTimer(3000);
+                        } else {
+                            gameOverScreen = new GameOverScreen(asteroids, this);
+                            gameOverScreen.show();
+                        }
                     }
                 }
             }
@@ -288,7 +321,7 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                             a1.setRotation(a1.getDirection());
                             a2.setRotation(a2.getDirection());
                         }
-                        player.setScore(player.getScore() + asteroid.calcScore());
+                        shoot.getOwner().setScore(shoot.getOwner().getScore() + asteroid.calcScore());
                         scoresList.add(new FloatingScore(String.valueOf(asteroid.calcScore()), shoot.getX(), shoot.getY(), 2000));
                         stage.getActors().removeValue(shoot, false);
                         itS.remove();
@@ -340,7 +373,6 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
 
     @Override
     public Object sendData() {
-        lock.lock();
         if (gameOptions.isServer()) {
             GameDataServer data = new GameDataServer();
             ArrayList<Player> allPlayers = new ArrayList<>();
@@ -349,12 +381,10 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
             data.setAllPlayers(allPlayers);
             data.setAsteroids(asteroidsList);
             data.setShoots(shootsList);
-            lock.unlock();
             return data;
         } else {
             GameDataClient data = new GameDataClient();
             data.setPlayer(player);
-            lock.unlock();
             return data;
         }
     }
@@ -365,6 +395,7 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
     }
 
     public void onDataReceived2(Object object) {
+        if (object == null) return;
         lock.lock();
         if (gameOptions.isServer()) {
             if (object instanceof GameDataClient) {
@@ -379,6 +410,7 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                 if (!playerFound) {
                     Player newPlayer = new Player();
                     newPlayer.copyFrom(data.getPlayer());
+                    newPlayer.setColor(colors.get(newPlayer.getClientId() % colors.size()));
                     otherPlayers.add(newPlayer);
                 }
             }
@@ -407,70 +439,23 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                     if (!playerFound) {
                         Player newPlayer = new Player();
                         newPlayer.copyFrom(p);
+                        newPlayer.setColor(colors.get(newPlayer.getClientId() % colors.size()));
                         otherPlayers.add(newPlayer);
                     }
+                }
+                shootsList = data.getShoots();
+                for (Shoot shoot : shootsList) {
+                    if (player.getClientId() == shoot.getClientId()) shoot.setOwner(player);
+                    else {
+                        for (Player p : otherPlayers) {
+                            if (p.getClientId() == shoot.getClientId()) shoot.setOwner(p);
+                        }
+                    }
+                    shoot.loadLibgdxContent();
                 }
             }
         }
         lock.unlock();
-        /*lock.lock();
-        if (gameOptions.isServer()) {
-            if (object instanceof GameDataClient) {
-                GameDataClient data = (GameDataClient) object;
-                boolean playerFound = false;
-                for (int i = 0; i < otherPlayers.size(); i++) {
-                    if (otherPlayers.get(i).getClientId() == data.getPlayer().getClientId()) {
-                        otherPlayers.get(i).copyFrom(data.getPlayer());
-                        playerFound = true;
-                    }
-                }
-                if (!playerFound) {
-                    Gdx.app.postRunnable(new Runnable() {
-                        @Override
-                        public void run() {
-                            Player newPlayer = new Player();
-                            newPlayer.copyFrom(data.getPlayer());
-                            otherPlayers.add(newPlayer);
-                        }
-                    });
-                }
-            }
-        } else {
-            if (object instanceof GameDataServer) {
-                GameDataServer data = (GameDataServer) object;
-                asteroidsList = data.getAsteroids();
-                ArrayList<Player> allPlayers = data.getAllPlayers();
-                for (Iterator<Player> iterator = allPlayers.iterator(); iterator.hasNext();) {
-                    Player p = iterator.next();
-                    if (player.getClientId() == p.getClientId()) {
-                        //player.copyFrom(p);
-                        iterator.remove();
-                        break;
-                    }
-                }
-                for (Player p : allPlayers) {
-                    boolean playerFound = false;
-                    for (Player p2 : otherPlayers) {
-                        if (p.getClientId() == p2.getClientId()) {
-                            p2.copyFrom(p);
-                            playerFound = true;
-                            break;
-                        }
-                    }
-                    if (!playerFound) {
-                        Gdx.app.postRunnable(new Runnable() {
-                            @Override
-                            public void run() {
-                                Player newPlayer = new Player();
-                                newPlayer.copyFrom(p);
-                                otherPlayers.add(newPlayer);
-                            }
-                        });
-                    }
-                }
-            }
-        }
-        lock.unlock();*/
     }
 
     public void disconnect() {
