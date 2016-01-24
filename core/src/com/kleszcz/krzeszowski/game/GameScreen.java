@@ -17,6 +17,7 @@ import com.badlogic.gdx.utils.ShortArray;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.kleszcz.krzeszowski.*;
 import com.kleszcz.krzeszowski.multiplayer.ClientHandler;
+import com.kleszcz.krzeszowski.ui.MainMenuScreen;
 import com.sun.org.apache.xpath.internal.operations.Bool;
 
 import java.text.SimpleDateFormat;
@@ -28,7 +29,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * TODO add collision between players and bullets and asteroids
  * TODO add points
  */
-public class GameScreen implements Screen, SendReceiveDataListener {
+public class GameScreen implements Screen, SendReceiveDataListener, ClientDisconnectListener {
     private GameOptions gameOptions;
     private Rectangle map = Globals.MAP_BOUNDS;
     private Texture textureHeart = new Texture(Gdx.files.internal("heart.png"));
@@ -46,7 +47,8 @@ public class GameScreen implements Screen, SendReceiveDataListener {
     private ArrayList<Asteroid> asteroidsList;
     private ArrayList<FloatingScore> scoresList;
     private ReentrantLock lock = new ReentrantLock();
-
+    GameMenuScreen menu;
+    boolean escPressed = false;
     private InputAdapter inputAdapter = new InputAdapter() {
 
         @Override
@@ -67,6 +69,12 @@ public class GameScreen implements Screen, SendReceiveDataListener {
                 case Input.Keys.LEFT: player.setRotatingLeft(false); break;
                 case Input.Keys.RIGHT: player.setRotatingRight(false); break;
                 case Input.Keys.SPACE: player.setFiring(false); break;
+                case Input.Keys.ESCAPE:
+                    if (menu == null) {
+                        menu = new GameMenuScreen(asteroids, GameScreen.this);
+                        menu.show();
+                    }
+                    break;
             }
             return true;
         }
@@ -99,8 +107,11 @@ public class GameScreen implements Screen, SendReceiveDataListener {
         player = new Player();
         player.setPosition((map.getX() + map.getWidth()) * 0.5f, (map.getY() + map.getHeight()) * 0.5f);
         player.setName("Player");
-        if (gameOptions.isServer()) player.setClientId(0);
-        else player.setClientId(1);
+        if (gameOptions.isServer()) {
+            player.setClientId(1);
+        } else {
+            player.setClientId(gameOptions.getClient().getClientId());
+        }
         Background bg = new Background();
         stage.addActor(bg);
         stage.addActor(player);
@@ -183,6 +194,26 @@ public class GameScreen implements Screen, SendReceiveDataListener {
                     textureShield.getWidth(), textureShield.getHeight(), false, false);
         }
         batch.end();
+        if (menu != null && Gdx.input.isKeyPressed(Input.Keys.ESCAPE)) {
+            escPressed = true;
+        }
+        if (menu != null && !Gdx.input.isKeyPressed(Input.Keys.ESCAPE) && escPressed) {
+            escPressed = false;
+            menu.dispose();
+            menu = null;
+            Gdx.input.setInputProcessor(inputAdapter);
+        }
+        if (menu != null) {
+            Gdx.graphics.getGL20().glEnable(GL20.GL_BLEND);
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+            shapeRenderer.setColor(new Color(0, 0, 0, 0.6f));
+            shapeRenderer.rect(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+            shapeRenderer.end();
+            menu.getStage().act(delta);
+            menu.getStage().draw();
+            Gdx.gl.glDisable(GL20.GL_BLEND);
+        }
         lock.unlock();
     }
 
@@ -317,6 +348,7 @@ public class GameScreen implements Screen, SendReceiveDataListener {
             allPlayers.addAll(otherPlayers);
             data.setAllPlayers(allPlayers);
             data.setAsteroids(asteroidsList);
+            data.setShoots(shootsList);
             lock.unlock();
             return data;
         } else {
@@ -439,5 +471,40 @@ public class GameScreen implements Screen, SendReceiveDataListener {
             }
         }
         lock.unlock();*/
+    }
+
+    public void disconnect() {
+        if (gameOptions.isServer()) {
+            gameOptions.getServer().shutdown();
+        }
+    }
+
+    public void returnToGame() {
+        escPressed = false;
+        menu.dispose();
+        menu = null;
+        Gdx.input.setInputProcessor(inputAdapter);
+    }
+
+    @Override
+    public void clientDisconnect(int clientId) {
+        if (gameOptions.isServer()) {
+            lock.lock();
+            for (Iterator<Player> iterator = otherPlayers.iterator(); iterator.hasNext();) {
+                Player p = iterator.next();
+                if (p.getClientId() == clientId) iterator.remove();
+            }
+            lock.unlock();
+        } else {
+            if (clientId == 1) {
+                System.out.println("Server closed connection");
+                Gdx.app.postRunnable(new Runnable() {
+                    @Override
+                    public void run() {
+                        asteroids.setScreen(new DisconnectScreen(asteroids, GameScreen.this));
+                    }
+                });
+            }
+        }
     }
 }

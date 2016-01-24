@@ -1,10 +1,13 @@
 package com.kleszcz.krzeszowski.multiplayer;
 
 import com.kleszcz.krzeszowski.SendReceiveDataListener;
+import com.kleszcz.krzeszowski.game.Player;
 
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 /**
  * Created by Elimas on 2015-12-06.
@@ -13,6 +16,8 @@ public class Server implements Runnable {
     private SendReceiveDataListener sendReceiveDataListener;
     private int port;
     private ArrayList<ClientHandler> clientsList = new ArrayList<>();
+    private int clientId = 2;
+    private ServerSocket serverSocket;
 
     public SendReceiveDataListener getSendReceiveDataListener() {
         return sendReceiveDataListener;
@@ -33,18 +38,34 @@ public class Server implements Runnable {
     @Override
     public void run() {
         try {
-            ServerSocket serverSocket = new ServerSocket(port);
+            serverSocket = new ServerSocket(port);
             System.out.println("Server started");
-            while (true) {
+            while (!serverSocket.isClosed()) {
                 Socket socket = serverSocket.accept();
-                System.out.println("New client connected");
-                ClientHandler clientHandler = new ClientHandler(this, clientsList.size() + 1, socket);
+                System.out.println("New client connected. Client id: " + clientId);
+                ClientHandler clientHandler = new ClientHandler(this, clientId, socket);
                 clientsList.add(clientHandler);
                 Thread t = new Thread(clientHandler);
                 t.start();
+                clientId++;
                 Thread.sleep(10);
             }
         } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void shutdown() {
+        try {
+            serverSocket.close();
+            for (ClientHandler client : clientsList) {
+                try {
+                    client.shutdown();
+                } catch (Exception e) {
+
+                }
+            }
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
