@@ -48,8 +48,10 @@ public class ClientHandler implements Runnable {
                     while (!socket.isClosed()) {
                         try {
                             Object object = in.readObject();
-                            lastObject = object;
-                            server.getSendReceiveDataListener().onDataReceived(object);
+                            if(object != null) {
+                                lastObject = object;
+                                server.getSendReceiveDataListener().onDataReceived(object);
+                            }
                         } catch (IOException | ClassNotFoundException e) {
                             if (e instanceof SocketException) {
                                 if (((SocketException) e).getMessage().equals("Connection reset")) {

@@ -9,13 +9,18 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextField;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.kleszcz.krzeszowski.Asteroids;
 import com.kleszcz.krzeszowski.GameOptions;
+import com.kleszcz.krzeszowski.SendReceiveDataListener;
 import com.kleszcz.krzeszowski.game.GameScreen;
 import com.kleszcz.krzeszowski.multiplayer.Client;
 
 public class JoinGameScreen extends MenuScreen {
-    public JoinGameScreen(Asteroids asteroids) {
+    private String playerNick;
+    public JoinGameScreen(Asteroids asteroids, String playerNick) {
         super(asteroids);
+        this.playerNick = playerNick;
     }
+    private boolean gameStarted = false;
+    Client client;
 
 
     @Override
@@ -50,13 +55,46 @@ public class JoinGameScreen extends MenuScreen {
 
         joinGameButton.addListener(new ChangeListener() {
             public void changed(ChangeEvent event, Actor actor) {
-                Client client = new Client(addressTextField.getText(), 1234);
+                client = new Client(addressTextField.getText(), 1234);
+                client.setSendReceiveDataListener(new SendReceiveDataListener() {
+                    private boolean nickSent = false;
+
+                    @Override
+                    public Object sendData() {
+                        if(nickSent)
+                            return null;
+                        nickSent = true;
+                        return playerNick;
+                    }
+
+                    @Override
+                    public void onDataReceived(Object object) {
+                        gameStarted = true;
+                    }
+                });
                 new Thread(client).start();
-                GameOptions gameOptions = GameOptions.newClient(client, "Gracz");
-                GameScreen gameScreen = new GameScreen(asteroids, gameOptions);
-                client.setSendReceiveDataListener(gameScreen);
-                asteroids.setScreen(gameScreen);
+                header.setText("Oczekiwanie na rozpoczecie gry...");
+                addressTextField.setDisabled(true);
+                joinGameButton.setText("Czekaj...");
             }
         });
+    }
+
+    @Override
+    public void render (float delta) {
+        super.render(delta);
+        if(gameStarted) {
+            GameOptions gameOptions = GameOptions.newClient(client, playerNick);
+            GameScreen gameScreen = new GameScreen(asteroids, gameOptions);
+            new Thread(() -> {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                client.setSendReceiveDataListener(gameScreen);
+            }).start();
+            asteroids.setScreen(gameScreen);
+        }
     }
 }

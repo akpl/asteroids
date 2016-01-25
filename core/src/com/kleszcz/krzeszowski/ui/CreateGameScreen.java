@@ -6,12 +6,15 @@ import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.kleszcz.krzeszowski.Asteroids;
 import com.kleszcz.krzeszowski.GameOptions;
+import com.kleszcz.krzeszowski.SendReceiveDataListener;
 import com.kleszcz.krzeszowski.game.GameScreen;
 import com.kleszcz.krzeszowski.multiplayer.Server;
 
 public class CreateGameScreen extends MenuScreen {
-    public CreateGameScreen(Asteroids asteroids) {
+    private String playerNick;
+    public CreateGameScreen(Asteroids asteroids, String playerNick) {
         super(asteroids);
+        this.playerNick = playerNick;
     }
 
     @Override
@@ -37,10 +40,10 @@ public class CreateGameScreen extends MenuScreen {
         nestedTable.add(logLabel);
         nestedTable.row();
         final List playersList = new List(skin);
-        playersList.setItems(new String[] {"Mario", "Pacman", "Zelda"});
+        playersList.getItems().add(playerNick);
         nestedTable.add(playersList).width(200).minHeight(300).pad(15);
 
-        final TextArea logTextArea = new TextArea("Uruchamianie serwera\nSerwer oczekuje na polaczenia...", skin);
+        final TextArea logTextArea = new TextArea("Serwer oczekuje na polaczenia...\n", skin);
         logTextArea.setDisabled(true);
         nestedTable.add(logTextArea).width(400).fillY().pad(15);
 
@@ -50,11 +53,25 @@ public class CreateGameScreen extends MenuScreen {
         final TextButton startGameButton = new TextButton("Start!", skin);
         table.add(startGameButton).right();
 
+        Server server = new Server(1234);
+        server.setSendReceiveDataListener(new SendReceiveDataListener() {
+            @Override
+            public Object sendData() {
+                return null;
+            }
+
+            @Override
+            public void onDataReceived(Object object) {
+                String playerNick = (String)object;
+                playersList.getItems().add(playerNick);
+                logTextArea.setText(logTextArea.getText() + "Gracz " + playerNick + " dolaczyl do gry\n");
+            }
+        });
+        new Thread(server).start();
+
         startGameButton.addListener(new ChangeListener() {
             public void changed (ChangeEvent event, Actor actor) {
-                Server server = new Server(1234);
-                new Thread(server).start();
-                GameOptions gameOptions = GameOptions.newServer(server, "GraczS");
+                GameOptions gameOptions = GameOptions.newServer(server, playerNick);
                 GameScreen gameScreen = new GameScreen(asteroids, gameOptions);
                 server.setSendReceiveDataListener(gameScreen);
                 asteroids.setScreen(gameScreen);

@@ -61,13 +61,13 @@ public class MainMenuScreen extends MenuScreen implements Screen {
 
         createGameButton.addListener(new ChangeListener() {
             public void changed(ChangeEvent event, Actor actor) {
-                asteroids.setScreen(new CreateGameScreen(asteroids));
+                asteroids.setScreen(new CreateGameScreen(asteroids, nickTextField.getText()));
             }
         });
 
         joinGameButton.addListener(new ChangeListener() {
             public void changed(ChangeEvent event, Actor actor) {
-                asteroids.setScreen(new JoinGameScreen(asteroids));
+                asteroids.setScreen(new JoinGameScreen(asteroids, nickTextField.getText()));
             }
         });
 
