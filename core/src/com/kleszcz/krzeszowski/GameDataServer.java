@@ -2,6 +2,7 @@ package com.kleszcz.krzeszowski;
 
 import com.kleszcz.krzeszowski.game.Asteroid;
 import com.kleszcz.krzeszowski.game.Player;
+import com.kleszcz.krzeszowski.game.Powerup;
 import com.kleszcz.krzeszowski.game.Shoot;
 
 import java.io.Serializable;
@@ -14,6 +15,7 @@ public class GameDataServer implements Serializable {
     private ArrayList<Asteroid> asteroids;
     private ArrayList<Player> allPlayers;
     private ArrayList<Shoot> shoots;
+    private ArrayList<Powerup> powerups;
 
     public ArrayList<Asteroid> getAsteroids() {
         return asteroids;
@@ -37,5 +39,13 @@ public class GameDataServer implements Serializable {
 
     public void setShoots(ArrayList<Shoot> shoots) {
         this.shoots = shoots;
+    }
+
+    public ArrayList<Powerup> getPowerups() {
+        return powerups;
+    }
+
+    public void setPowerups(ArrayList<Powerup> powerups) {
+        this.powerups = powerups;
     }
 }

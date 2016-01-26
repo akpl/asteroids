@@ -37,12 +37,15 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
     private ArrayList<Player> otherPlayers = new ArrayList<>();
     private ArrayList<Shoot> shootsList;
     private ArrayList<Asteroid> asteroidsList;
-    private ArrayList<FloatingScore> scoresList;
     private ReentrantLock lock = new ReentrantLock();
     GameMenuScreen menu;
     GameOverScreen gameOverScreen;
     boolean escPressed = false;
     private ArrayList<Color> colors = new ArrayList<>();
+    private ArrayList<Powerup> powerupsList = new ArrayList<>();
+    private int powerupTimer = 100;
+    private ArrayList<Integer> takenPowerups = new ArrayList<>();
+    private int powerupId = 0;
     private InputAdapter inputAdapter = new InputAdapter() {
 
         @Override
@@ -116,7 +119,6 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
 
         shootsList = new ArrayList<>();
         asteroidsList = new ArrayList<>();
-        scoresList = new ArrayList<>();
     }
 
     @Override
@@ -138,9 +140,68 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
         stage.draw();
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
+        if (gameOptions.isServer()) {
+            powerupTimer--;
+            if (powerupTimer == 0) {
+                powerupTimer = Utils.randomRange(400, 1000);
+                PowerupType type;
+                if (Utils.randomRange(0, 1) == 0) {
+                    type = PowerupType.Live;
+                } else {
+                    type = PowerupType.Shield;
+                }
+                float x = Utils.randomRange(Globals.MAP_BOUNDS.getX(), Globals.MAP_BOUNDS.getX() + Globals.MAP_BOUNDS.getWidth());
+                float y = Utils.randomRange(Globals.MAP_BOUNDS.getY(), Globals.MAP_BOUNDS.getY() + Globals.MAP_BOUNDS.getHeight());
+                int time = Utils.randomRange(300, 500);
+                Powerup powerup = new Powerup(powerupId, type, x, y, time);
+                powerupsList.add(powerup);
+                powerupId++;
+            }
+            Iterator<Powerup> it = powerupsList.iterator();
+            while (it.hasNext()) {
+                Powerup powerup = it.next();
+                if (powerup.getLeftTime() > 0) {
+                    powerup.setLeftTime(powerup.getLeftTime() - 1);
+                }
+                if (powerup.getLeftTime() <= 0) it.remove();
+            }
+        }
+        for (Powerup powerup : powerupsList) {
+            if (powerup.getLeftTime() > 0) {
+                Color color = batch.getColor();
+                Color c2 = new Color(color);
+                if (powerup.getType() == PowerupType.Live) c2.set(Color.FIREBRICK);
+                else if (powerup.getType() == PowerupType.Shield) c2.set(Color.SKY);
+                c2.a = (float) powerup.getLeftTime() / (float) powerup.getStartTime();
+                batch.setColor(c2);
+                if (powerup.getType() == PowerupType.Live) {
+                    batch.draw(textureHeart, powerup.getX(), powerup.getY(), powerup.getX() - (textureHeart.getWidth() * 0.5f), powerup.getY() - (textureHeart.getHeight() * 0.5f), textureHeart.getWidth(), textureHeart.getHeight(), 1, 1, 0, 0, 0, textureHeart.getWidth(), textureHeart.getHeight(), false, false);
+                } else if (powerup.getType() == PowerupType.Shield) {
+                    batch.draw(textureShield, powerup.getX(), powerup.getY(), powerup.getX() - (textureShield.getWidth() * 0.5f), powerup.getY() - (textureShield.getHeight() * 0.5f), textureShield.getWidth(), textureShield.getHeight(), 1, 1, 0, 0, 0, textureShield.getWidth(), textureShield.getHeight(), false, false);
+                }
+                batch.setColor(color);
+            }
+        }
+        Iterator<Powerup> it = powerupsList.iterator();
+        while (it.hasNext()) {
+            Powerup powerup = it.next();
+            if (takenPowerups.contains(powerup.getId())) continue;
+            float distance = Vector2.dst(powerup.getX(), powerup.getY(), player.getX(), player.getY());
+            if (distance < 40) {
+                if (powerup.getType() == PowerupType.Live) {
+                    player.setLives(player.getLives() + 1);
+                } else if (powerup.getType() == PowerupType.Shield) {
+                    player.setShieldEnabled(true);
+                    player.setShieldTimer(5000);
+                }
+                takenPowerups.add(powerup.getId());
+                it.remove();
+            }
+        }
         for (Player p : otherPlayers) {
             if (p.getLives() > 0) {
-                p.act(delta);
+                //p.act(delta);
+                p.updateTimers(delta);
                 p.draw(batch, 1);
             }
         }
@@ -343,6 +404,14 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
             if (score.getTimeLeft() > 0) score.update(delta);
             else itFS.remove();
         }
+        for (Player p : otherPlayers) {
+            Iterator<FloatingScore> itFS2 = p.getFloatingScores().iterator();
+            while (itFS2.hasNext()) {
+                FloatingScore score2 = itFS2.next();
+                if (score2.getTimeLeft() > 0) score2.update(delta);
+                else itFS2.remove();
+            }
+        }
     }
 
     @Override
@@ -380,10 +449,12 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
             data.setAllPlayers(allPlayers);
             data.setAsteroids(asteroidsList);
             data.setShoots(shootsList);
+            data.setPowerups(powerupsList);
             return data;
         } else {
             GameDataClient data = new GameDataClient();
             data.setPlayer(player);
+            data.setTakenPowerups(takenPowerups);
             return data;
         }
     }
@@ -411,6 +482,18 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                     newPlayer.copyFrom(data.getPlayer());
                     newPlayer.setColor(colors.get(newPlayer.getClientId() % colors.size()));
                     otherPlayers.add(newPlayer);
+                }
+                if (data.getTakenPowerups() != null && data.getTakenPowerups().size() > 0) {
+                    Iterator<Powerup> itPowerup = powerupsList.iterator();
+                    while (itPowerup.hasNext()) {
+                        Powerup powerup = itPowerup.next();
+                        for (Integer powerupId : data.getTakenPowerups()) {
+                            if (powerup.getId() == powerupId) {
+                                itPowerup.remove();
+                                break;
+                            }
+                        }
+                    }
                 }
             }
         } else {
@@ -459,6 +542,9 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                         }
                         shoot.loadLibgdxContent();
                     }
+                }
+                if (data.getPowerups() != null) {
+                    powerupsList = data.getPowerups();
                 }
             }
         }

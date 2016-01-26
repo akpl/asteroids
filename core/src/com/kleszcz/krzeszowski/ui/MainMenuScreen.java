@@ -2,10 +2,13 @@ package com.kleszcz.krzeszowski.ui;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.kleszcz.krzeszowski.Asteroids;
+import com.kleszcz.krzeszowski.Globals;
+import com.kleszcz.krzeszowski.Utils;
 
 public class MainMenuScreen extends MenuScreen implements Screen {
     public MainMenuScreen(Asteroids asteroids) {
@@ -53,7 +56,7 @@ public class MainMenuScreen extends MenuScreen implements Screen {
         final Label nickLabel = new Label("Nick:   ", skin);
         horizontalTable.add(nickLabel);
 
-        final TextField nickTextField = new TextField("Gracz1", skin);
+        final TextField nickTextField = new TextField("Gracz" + Utils.randomRange(1, 99), skin);
         horizontalTable.add(nickTextField);
 
         table.add(horizontalTable).fill();
@@ -80,7 +83,13 @@ public class MainMenuScreen extends MenuScreen implements Screen {
         fullScreenCheckBox.addListener(new ChangeListener() {
             @Override
             public void changed(ChangeEvent event, Actor actor) {
-                Gdx.graphics.setDisplayMode(1280, 720, fullScreenCheckBox.isChecked());
+                if (fullScreenCheckBox.isChecked()) {
+                    Gdx.graphics.setDisplayMode(1366, 768, true);
+                    Globals.MAP_BOUNDS = new Rectangle(0, 0, 1366, 768);
+                } else {
+                    Gdx.graphics.setDisplayMode(1280, 720, false);
+                    Globals.MAP_BOUNDS = new Rectangle(0, 0, 1280, 720);
+                }
             }
         });
     }

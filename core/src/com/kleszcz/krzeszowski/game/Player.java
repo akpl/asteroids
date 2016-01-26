@@ -35,7 +35,7 @@ public class Player extends Actor implements Serializable {
     private int score = 0;
     private float speed = 8;
     private float rotateSpeed = 3.5f;
-    private int fireInterval = 25;
+    private int fireInterval = 28;
     private int fireTimer = 0;
     private boolean isShieldEnabled = false;
     private int shieldTimer = 0;
@@ -255,6 +255,17 @@ public class Player extends Actor implements Serializable {
         } else acceleration = Math.max(acceleration - 0.05f, 0);
         if (isRotatingLeft) rotateBy(rotateSpeed);
         if (isRotatingRight) rotateBy(-rotateSpeed);
+        setRotation(Utils.normalizeDegrees(getRotation()));
+        velocity.x *= 0.99;
+        velocity.y *= 0.99;
+        float x = getX() + velocity.x;
+        float y = getY() + velocity.y;
+        setX(Utils.clipToRange(x, Globals.MAP_BOUNDS.x + getOriginX() - 5, Globals.MAP_BOUNDS.x + Globals.MAP_BOUNDS.width - getOriginX() + 5));
+        setY(Utils.clipToRange(y, Globals.MAP_BOUNDS.y + getOriginY() - 5, Globals.MAP_BOUNDS.y + Globals.MAP_BOUNDS.height - getOriginY() + 5));
+        updateTimers(delta);
+    }
+
+    public void updateTimers(float delta) {
         if (fireTimer > 0) fireTimer--;
         if (isShieldEnabled) {
             if (shieldTimer > 0) {
@@ -264,13 +275,6 @@ public class Player extends Actor implements Serializable {
                 shieldTimer = 0;
             }
         }
-        setRotation(Utils.normalizeDegrees(getRotation()));
-        velocity.x *= 0.99;
-        velocity.y *= 0.99;
-        float x = getX() + velocity.x;
-        float y = getY() + velocity.y;
-        setX(Utils.clipToRange(x, Globals.MAP_BOUNDS.x + getOriginX() - 5, Globals.MAP_BOUNDS.x + Globals.MAP_BOUNDS.width - getOriginX() + 5));
-        setY(Utils.clipToRange(y, Globals.MAP_BOUNDS.y + getOriginY() - 5, Globals.MAP_BOUNDS.y + Globals.MAP_BOUNDS.height - getOriginY() + 5));
     }
 
     public boolean fire() {
@@ -326,7 +330,7 @@ public class Player extends Actor implements Serializable {
         Utils.copyToActor(other, this);
         clientId = other.clientId;
         lives = other.lives;
-        //score = other.score;
+        score = Math.max(score, other.score);
         speed = other.speed;
         rotateSpeed = other.rotateSpeed;
         fireInterval = other.fireInterval;
