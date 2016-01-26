@@ -7,6 +7,6 @@ import com.badlogic.gdx.math.Rectangle;
  */
 public class Globals {
     public static final boolean DEBUG = true;
-    public static final boolean DEBUG_COLLISIONS = true;
+    public static final boolean DEBUG_COLLISIONS = false;
     public static final Rectangle MAP_BOUNDS = new Rectangle(0, 0, 1280, 720);
 }

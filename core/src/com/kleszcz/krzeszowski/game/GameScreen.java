@@ -136,17 +136,16 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
         }
         lock.lock();
         stage.act(delta);
-        for (Player p : otherPlayers) {
-            p.act(delta);
-        }
         update(delta);
-        clearOutside();
         camera.update();
         stage.draw();
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
         for (Player p : otherPlayers) {
-            p.draw(batch, 1);
+            if (p.getLives() > 0) {
+                p.act(delta);
+                p.draw(batch, 1);
+            }
         }
         for (Shoot shoot : shootsList) {
             shoot.act(delta);
@@ -181,15 +180,17 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
         Vector3 playerPosition = camera.project(new Vector3(player.getX(), player.getY(), 0));
         player.drawName(batch);
         for (Player p : otherPlayers) {
-            p.drawName(batch);
+            if (p.getLives() > 0) p.drawName(batch);
         }
         for (FloatingScore score : scoresList) {
             if (score.getTimeLeft() > 0) score.draw(batch);
         }
         font.draw(batch, "Score\r\n" + player.getScore(), 20, camera.viewportHeight - 20);
+        int i = 0;
         for (Player p : otherPlayers) {
             fontSmall.setColor(p.getColor());
-            fontSmall.draw(batch, p.getName() + " " + p.getScore(), 20, camera.viewportHeight - 100);
+            fontSmall.draw(batch, p.getName() + " " + p.getScore(), 20, camera.viewportHeight - 100 - 20 * i);
+            i++;
         }
         font.draw(batch, String.valueOf(player.getLives()), camera.viewportWidth - 28, camera.viewportHeight - 20);
         batch.draw(textureHeart, camera.viewportWidth - 40 - textureHeart.getWidth(), camera.viewportHeight - 20 - textureHeart.getHeight() + 2, 0, 0, textureHeart.getWidth(),
@@ -237,7 +238,7 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
     }
 
     private void update(float delta) {
-        asteroidsGenerator.update(asteroidsList);
+        if (gameOptions.isServer()) asteroidsGenerator.update(asteroidsList);
         //update bullets
         if (gameOptions.isServer()) {
             if (player.isFiring()) {
@@ -277,7 +278,7 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                 continue;
             }
             //check collisions asteroid - player
-            if (!player.isShieldEnabled() && Vector2.dst(asteroid.getX(), asteroid.getY(), player.getX(), player.getY()) < Math.max(asteroid.getScaleX(), asteroid.getScaleY()) + Math.max(player.getWidth(), player.getHeight())) {
+            if (player.getLives() > 0 && !player.isShieldEnabled() && Vector2.dst(asteroid.getX(), asteroid.getY(), player.getX(), player.getY()) < Math.max(asteroid.getScaleX(), asteroid.getScaleY()) + Math.max(player.getWidth(), player.getHeight())) {
                 float[] vertices = player.getPolygon().getTransformedVertices();
                 for (int i = 0; i < vertices.length; i += 2) {
                     Vector2 v1 = new Vector2(), v2 = new Vector2();
@@ -292,6 +293,7 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                             player.setShieldEnabled(true);
                             player.setShieldTimer(3000);
                         } else {
+                            stage.getActors().removeValue(player, false);
                             gameOverScreen = new GameOverScreen(asteroids, this);
                             gameOverScreen.show();
                         }
@@ -299,39 +301,41 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                 }
             }
             //check collisions asteroid - bullet
-            Asteroid a1 = null, a2 = null;
-            Iterator<Shoot> itS = shootsList.iterator();
-            while (itS.hasNext()) {
-                Shoot shoot = itS.next();
-                if (Vector2.dst(asteroid.getX(), asteroid.getY(), shoot.getX(), shoot.getY()) < Math.max(asteroid.getScaleX(), asteroid.getScaleY()) + Math.max(shoot.getScaleX(), shoot.getScaleY())) {
-                    Vector2 shootStart = new Vector2();
-                    shootStart.x = shoot.getX() + 5 * shoot.getScaleY() * (float) Math.cos(Math.toRadians(shoot.getRotation() + 90));
-                    shootStart.y = shoot.getY() + 5 * shoot.getScaleY() * (float) Math.sin(Math.toRadians(shoot.getRotation() + 90));
-                    Vector2 shootEnd = new Vector2();
-                    shootEnd.x = shoot.getX();
-                    shootEnd.y = shoot.getY();
-                    if (Intersector.intersectSegmentPolygon(shootEnd, shootStart, asteroid)) {
-                        if (asteroid.getScaleX() + asteroid.getScaleY() > 250) {
-                            a1 = new Asteroid(asteroid);
-                            a2 = new Asteroid(asteroid);
-                            a1.setScale(a1.getScaleX() * 0.5f, a1.getScaleY() * 0.5f);
-                            a2.setScale(a2.getScaleX() * 0.5f, a2.getScaleY() * 0.5f);
-                            a1.setDirection(shoot.getRotation() + 90 + Utils.randomRange(-20, 20));
-                            a2.setDirection(shoot.getRotation() - 90 + Utils.randomRange(-20, 20));
-                            a1.setRotation(a1.getDirection());
-                            a2.setRotation(a2.getDirection());
+            if (gameOptions.isServer()) {
+                Asteroid a1 = null, a2 = null;
+                Iterator<Shoot> itS = shootsList.iterator();
+                while (itS.hasNext()) {
+                    Shoot shoot = itS.next();
+                    if (Vector2.dst(asteroid.getX(), asteroid.getY(), shoot.getX(), shoot.getY()) < Math.max(asteroid.getScaleX(), asteroid.getScaleY()) + Math.max(shoot.getScaleX(), shoot.getScaleY())) {
+                        Vector2 shootStart = new Vector2();
+                        shootStart.x = shoot.getX() + 5 * shoot.getScaleY() * (float) Math.cos(Math.toRadians(shoot.getRotation() + 90));
+                        shootStart.y = shoot.getY() + 5 * shoot.getScaleY() * (float) Math.sin(Math.toRadians(shoot.getRotation() + 90));
+                        Vector2 shootEnd = new Vector2();
+                        shootEnd.x = shoot.getX();
+                        shootEnd.y = shoot.getY();
+                        if (Intersector.intersectSegmentPolygon(shootEnd, shootStart, asteroid)) {
+                            if (asteroid.getScaleX() + asteroid.getScaleY() > 250) {
+                                a1 = new Asteroid(asteroid);
+                                a2 = new Asteroid(asteroid);
+                                a1.setScale(a1.getScaleX() * 0.5f, a1.getScaleY() * 0.5f);
+                                a2.setScale(a2.getScaleX() * 0.5f, a2.getScaleY() * 0.5f);
+                                a1.setDirection(shoot.getRotation() + 90 + Utils.randomRange(-20, 20));
+                                a2.setDirection(shoot.getRotation() - 90 + Utils.randomRange(-20, 20));
+                                a1.setRotation(a1.getDirection());
+                                a2.setRotation(a2.getDirection());
+                            }
+                            shoot.getOwner().setScore(shoot.getOwner().getScore() + asteroid.calcScore());
+                            scoresList.add(new FloatingScore(String.valueOf(asteroid.calcScore()), shoot.getX(), shoot.getY(), 2000));
+                            stage.getActors().removeValue(shoot, false);
+                            itS.remove();
+                            itA.remove();
+                            break;
                         }
-                        shoot.getOwner().setScore(shoot.getOwner().getScore() + asteroid.calcScore());
-                        scoresList.add(new FloatingScore(String.valueOf(asteroid.calcScore()), shoot.getX(), shoot.getY(), 2000));
-                        stage.getActors().removeValue(shoot, false);
-                        itS.remove();
-                        itA.remove();
-                        break;
                     }
                 }
+                if (a1 != null) itA.add(a1);
+                if (a2 != null) itA.add(a2);
             }
-            if (a1 != null) itA.add(a1);
-            if (a2 != null) itA.add(a2);
         }
         Iterator<FloatingScore> itFS = scoresList.iterator();
         while (itFS.hasNext()) {
@@ -339,11 +343,6 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
             if (score.getTimeLeft() > 0) score.update(delta);
             else itFS.remove();
         }
-    }
-
-    private void clearOutside() {
-
-
     }
 
     @Override
@@ -444,14 +443,16 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                     }
                 }
                 shootsList = data.getShoots();
-                for (Shoot shoot : shootsList) {
-                    if (player.getClientId() == shoot.getClientId()) shoot.setOwner(player);
-                    else {
-                        for (Player p : otherPlayers) {
-                            if (p.getClientId() == shoot.getClientId()) shoot.setOwner(p);
+                if (shootsList != null) {
+                    for (Shoot shoot : shootsList) {
+                        if (player.getClientId() == shoot.getClientId()) shoot.setOwner(player);
+                        else {
+                            for (Player p : otherPlayers) {
+                                if (p.getClientId() == shoot.getClientId()) shoot.setOwner(p);
+                            }
                         }
+                        shoot.loadLibgdxContent();
                     }
-                    shoot.loadLibgdxContent();
                 }
             }
         }

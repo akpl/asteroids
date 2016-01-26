@@ -19,9 +19,11 @@ public class AsteroidsGenerator {
             new float [] { 0.06811594f, 0.28115943f, 0.26231885f, 0.09565217f, 0.53913045f, 0.050724637f, 0.8f, 0.17246379f, 0.9347826f, 0.4f, 0.842029f, 0.48115948f, 0.7478261f, 0.37536237f, 0.6942029f, 0.46956527f, 0.78695655f, 0.48550728f, 0.9057971f, 0.726087f, 0.6652174f, 0.8115943f, 0.65652174f, 0.9637682f, 0.49565217f, 1.0f, 0.46666667f, 0.94202906f, 0.40434784f, 0.91304356f, 0.2652174f, 0.9550726f, 0.17391305f, 0.8159421f, 0.055072464f, 0.7492754f, 0.12608695f, 0.7115942f, 0.21594203f, 0.40579715f, 0.06811594f, 0.28115943f }
     );
     private Rectangle map = Globals.MAP_BOUNDS;
-    private int generateIntervalMin = 100;
-    private int generateIntervalMax = 300;
+    private int generateIntervalMin = 125;
+    private int generateIntervalMax = 250;
     private int generateTimer = 0;
+    private float scaleSize = 1;
+    private float scaleSpeed = 1;
 
     public AsteroidsGenerator() {
         //generateTimer = Utils.randomRange(generateIntervalMin, generateIntervalMax);
@@ -31,6 +33,10 @@ public class AsteroidsGenerator {
         if (generateTimer == 0) {
             generateTimer = Utils.randomRange(generateIntervalMin, generateIntervalMax);
             asteroidsList.add(generate());
+            if (generateIntervalMin > 25) generateIntervalMin -= 1;
+            if (generateIntervalMax > 50) generateIntervalMax -= 2;
+            if (scaleSize < 1.8f) scaleSize += 0.01f;
+            if (scaleSpeed < 1.8f) scaleSpeed += 0.01f;
         }
         generateTimer--;
     }
@@ -39,8 +45,8 @@ public class AsteroidsGenerator {
         Asteroid asteroid = new Asteroid();
         asteroid.setVertices(asteroidsTemplates.get(Utils.randomRange(0, asteroidsTemplates.size() - 1)));
         asteroid.setOrigin(0.5f, 0.5f);
-        float scaleX = Utils.randomRange(100, 300);
-        float scaleY = Utils.randomRange(100, 300);
+        float scaleX = Utils.randomRange(100, 300) * scaleSize;
+        float scaleY = Utils.randomRange(100, 300) * scaleSize;
         if (ThreadLocalRandom.current().nextBoolean()) asteroid.setScale(scaleX, scaleY);
         else asteroid.setScale(scaleX, scaleX);
         int side = Utils.randomRange(1, 4);
@@ -72,8 +78,8 @@ public class AsteroidsGenerator {
         asteroid.setPosition(posX, posY);
         asteroid.setRotation(Utils.randomRange(0, 359));
         asteroid.setDirection(direction);
-        asteroid.setSpeed(3f);
-        asteroid.setRotationSpeed(0.1f);
+        asteroid.setSpeed(Utils.randomRange(1f, 3f) * scaleSpeed);
+        asteroid.setRotationSpeed(Utils.randomRange(0.1f, 0.2f));
         return asteroid;
     }
 }
