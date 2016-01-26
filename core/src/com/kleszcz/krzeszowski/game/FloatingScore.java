@@ -5,12 +5,14 @@ import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 
+import java.io.Serializable;
+
 /**
  * Created by Elimas on 2015-12-04.
  */
-public class FloatingScore {
-    private BitmapFont font = new BitmapFont(Gdx.files.internal("Arial15.fnt"));
-    private GlyphLayout textGlyph;
+public class FloatingScore implements Serializable {
+    private transient BitmapFont font = new BitmapFont(Gdx.files.internal("Arial15.fnt"));
+    private transient GlyphLayout textGlyph;
     private float x;
     private float y;
     private String text;
@@ -38,7 +40,7 @@ public class FloatingScore {
 
     public void setText(String text) {
         this.text = text;
-        textGlyph = new GlyphLayout(font, text);
+        if (font != null) textGlyph = new GlyphLayout(font, text);
     }
 
     public int getTimeLeft() {
@@ -70,5 +72,10 @@ public class FloatingScore {
 
     public void draw(Batch batch) {
         font.draw(batch, getText(), getX() - textGlyph.width * 0.5f, getY() - textGlyph.height * 0.5f);
+    }
+
+    public void loadContent() {
+        font = new BitmapFont(Gdx.files.internal("Arial15.fnt"));
+        textGlyph = new GlyphLayout(font, text);
     }
 }

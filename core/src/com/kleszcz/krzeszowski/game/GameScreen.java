@@ -19,10 +19,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Created by Elimas on 2015-11-20.
- * TODO show points of all players in HUD OK
  * TODO powerups
- * TODO send & receive bullets OK
- * TODO gameover screen OK
  */
 public class GameScreen implements Screen, SendReceiveDataListener, ClientDisconnectListener {
     private GameOptions gameOptions;
@@ -148,6 +145,8 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
             }
         }
         for (Shoot shoot : shootsList) {
+            if (shoot.getOwner().getClientId() != player.getClientId()) shoot.setColor(shoot.getOwner().getColor());
+            else shoot.setColor(0.93f, 0.93f, 0, 1);
             shoot.act(delta);
             shoot.draw(batch, 1);
         }
@@ -178,11 +177,11 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
         //draw hud
         batch.begin();
         Vector3 playerPosition = camera.project(new Vector3(player.getX(), player.getY(), 0));
-        player.drawName(batch);
+        if (player.getLives() > 0) player.drawName(batch);
         for (Player p : otherPlayers) {
             if (p.getLives() > 0) p.drawName(batch);
         }
-        for (FloatingScore score : scoresList) {
+        for (FloatingScore score : player.getFloatingScores()) {
             if (score.getTimeLeft() > 0) score.draw(batch);
         }
         font.draw(batch, "Score\r\n" + player.getScore(), 20, camera.viewportHeight - 20);
@@ -297,6 +296,7 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                             gameOverScreen = new GameOverScreen(asteroids, this);
                             gameOverScreen.show();
                         }
+                        break;
                     }
                 }
             }
@@ -325,7 +325,7 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                                 a2.setRotation(a2.getDirection());
                             }
                             shoot.getOwner().setScore(shoot.getOwner().getScore() + asteroid.calcScore());
-                            scoresList.add(new FloatingScore(String.valueOf(asteroid.calcScore()), shoot.getX(), shoot.getY(), 2000));
+                            shoot.getOwner().getFloatingScores().add(new FloatingScore(String.valueOf(asteroid.calcScore()), shoot.getX(), shoot.getY(), 2000));
                             stage.getActors().removeValue(shoot, false);
                             itS.remove();
                             itA.remove();
@@ -337,7 +337,7 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                 if (a2 != null) itA.add(a2);
             }
         }
-        Iterator<FloatingScore> itFS = scoresList.iterator();
+        Iterator<FloatingScore> itFS = player.getFloatingScores().iterator();
         while (itFS.hasNext()) {
             FloatingScore score = itFS.next();
             if (score.getTimeLeft() > 0) score.update(delta);
@@ -422,6 +422,12 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                     Player p = iterator.next();
                     if (player.getClientId() == p.getClientId()) {
                         //player.copyFrom(p);
+                        player.setScore(p.getScore());
+                        player.setFloatingScores(p.getFloatingScores());
+                        for (FloatingScore fs : p.getFloatingScores()) {
+                            fs.loadContent();
+                        }
+                        //player.setLives(p.getLives());
                         iterator.remove();
                         break;
                     }
@@ -442,8 +448,8 @@ public class GameScreen implements Screen, SendReceiveDataListener, ClientDiscon
                         otherPlayers.add(newPlayer);
                     }
                 }
-                shootsList = data.getShoots();
-                if (shootsList != null) {
+                if (data.getShoots() != null) {
+                    shootsList = data.getShoots();
                     for (Shoot shoot : shootsList) {
                         if (player.getClientId() == shoot.getClientId()) shoot.setOwner(player);
                         else {

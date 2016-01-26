@@ -18,6 +18,7 @@ import java.beans.Transient;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.ArrayList;
 
 /**
  * Created by Elimas on 2015-11-20.
@@ -44,6 +45,7 @@ public class Player extends Actor implements Serializable {
     private boolean isFiring = false;
     private Vector2 velocity = Vector2.Zero, direction = Vector2.Zero;
     private float acceleration;
+    private ArrayList<FloatingScore> floatingScores = new ArrayList<>();
 
     @Override
     public void setName(String name) {
@@ -203,6 +205,14 @@ public class Player extends Actor implements Serializable {
         isFiring = firing;
     }
 
+    public ArrayList<FloatingScore> getFloatingScores() {
+        return floatingScores;
+    }
+
+    public void setFloatingScores(ArrayList<FloatingScore> floatingScores) {
+        this.floatingScores = floatingScores;
+    }
+
     public Player() {
         setBounds(getX(), getY(), texture.getWidth(), texture.getHeight());
         setWidth(texture.getWidth());
@@ -316,13 +326,13 @@ public class Player extends Actor implements Serializable {
         Utils.copyToActor(other, this);
         clientId = other.clientId;
         lives = other.lives;
-        score = other.score;
+        //score = other.score;
         speed = other.speed;
         rotateSpeed = other.rotateSpeed;
         fireInterval = other.fireInterval;
         //fireTimer = other.fireTimer;
         isShieldEnabled = other.isShieldEnabled;
-        //shieldTimer = other.shieldTimer;
+        shieldTimer = other.shieldTimer;
         //isFlyingForward = other.isFlyingForward;
         //isRotatingLeft = other.isRotatingLeft;
         //isRotatingRight = other.isRotatingRight;

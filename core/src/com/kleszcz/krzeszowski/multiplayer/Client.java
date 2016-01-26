@@ -102,7 +102,7 @@ public class Client implements Runnable {
                     if (writeLock != null) writeLock.lock();
                     Object object = sendReceiveDataListener.sendData();
                     if (object != null) out.writeObject(object);
-                    if (writeLock != null) writeLock.unlock();
+                    if (writeLock != null && writeLock.isHeldByCurrentThread()) writeLock.unlock();
                     if (object != null) {
                         out.flush();
                         Thread.sleep(15);
