@@ -19,7 +19,7 @@ public class Shoot extends Actor implements Serializable {
     private transient Texture texture = new Texture(Gdx.files.internal("pixel.png"));
     private transient Player owner;
     private int clientId;
-    private float speed = 10;
+    private float speed = 6;
 
     public Player getOwner() {
         return owner;

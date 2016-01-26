@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.g2d.Batch;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.math.Polygon;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.Touchable;
 import com.badlogic.gdx.utils.Align;
@@ -32,8 +33,8 @@ public class Player extends Actor implements Serializable {
     private int lives = 3;
     private int score = 0;
     private float speed = 8;
-    private float rotateSpeed = 3;
-    private int fireInterval = 20;
+    private float rotateSpeed = 3.5f;
+    private int fireInterval = 25;
     private int fireTimer = 0;
     private boolean isShieldEnabled = false;
     private int shieldTimer = 0;
@@ -41,6 +42,8 @@ public class Player extends Actor implements Serializable {
     private boolean isRotatingLeft = false;
     private boolean isRotatingRight = false;
     private boolean isFiring = false;
+    private Vector2 velocity = Vector2.Zero, direction = Vector2.Zero;
+    private float acceleration;
 
     @Override
     public void setName(String name) {
@@ -230,11 +233,16 @@ public class Player extends Actor implements Serializable {
     public void act(float delta) {
         super.act(delta);
         if (isFlyingForward) {
-            float x = getX() + speed * (float) Math.cos(Math.toRadians(getRotation() + 90));
-            float y = getY() + speed * (float) Math.sin(Math.toRadians(getRotation() + 90));
-            setX(Utils.clipToRange(x, Globals.MAP_BOUNDS.x + getOriginX() - 5, Globals.MAP_BOUNDS.x + Globals.MAP_BOUNDS.width - getOriginX() + 5));
-            setY(Utils.clipToRange(y, Globals.MAP_BOUNDS.y + getOriginY() - 5, Globals.MAP_BOUNDS.y + Globals.MAP_BOUNDS.height - getOriginY() + 5));
-        }
+            /*float x = getX() + speed * (float) Math.cos(Math.toRadians(getRotation() + 90));
+            float y = getY() + speed * (float) Math.sin(Math.toRadians(getRotation() + 90));*/
+            direction.x = (float) Math.cos(Math.toRadians(getRotation() + 90));
+            direction.y = (float) Math.sin(Math.toRadians(getRotation() + 90));
+            acceleration += 0.075f;
+            acceleration = Math.min(acceleration, 3.5f);
+            velocity.x += acceleration * direction.x;
+            velocity.y += acceleration * direction.y;
+
+        } else acceleration = Math.max(acceleration - 0.05f, 0);
         if (isRotatingLeft) rotateBy(rotateSpeed);
         if (isRotatingRight) rotateBy(-rotateSpeed);
         if (fireTimer > 0) fireTimer--;
@@ -247,6 +255,12 @@ public class Player extends Actor implements Serializable {
             }
         }
         setRotation(Utils.normalizeDegrees(getRotation()));
+        velocity.x *= 0.99;
+        velocity.y *= 0.99;
+        float x = getX() + velocity.x;
+        float y = getY() + velocity.y;
+        setX(Utils.clipToRange(x, Globals.MAP_BOUNDS.x + getOriginX() - 5, Globals.MAP_BOUNDS.x + Globals.MAP_BOUNDS.width - getOriginX() + 5));
+        setY(Utils.clipToRange(y, Globals.MAP_BOUNDS.y + getOriginY() - 5, Globals.MAP_BOUNDS.y + Globals.MAP_BOUNDS.height - getOriginY() + 5));
     }
 
     public boolean fire() {

@@ -20,8 +20,10 @@ public class AsteroidsGenerator {
     );
     private Rectangle map = Globals.MAP_BOUNDS;
     private int generateIntervalMin = 100;
-    private int generateIntervalMax = 300;
+    private int generateIntervalMax = 250;
     private int generateTimer = 0;
+    private float scaleSize = 1;
+    private float scaleSpeed = 1;
 
     public AsteroidsGenerator() {
         //generateTimer = Utils.randomRange(generateIntervalMin, generateIntervalMax);
@@ -31,6 +33,11 @@ public class AsteroidsGenerator {
         if (generateTimer == 0) {
             generateTimer = Utils.randomRange(generateIntervalMin, generateIntervalMax);
             asteroidsList.add(generate());
+            if (generateIntervalMin > 25) generateIntervalMin -= 1;
+            if (generateIntervalMax > 50) generateIntervalMax -= 2;
+            if (scaleSize < 1.8f) scaleSize += 0.01f;
+            if (scaleSpeed < 1.8f) scaleSpeed += 0.01f;
+            System.out.println("scaleSize: " + scaleSize + " scaleSpeed: " + scaleSpeed + " generateIMin: " + generateIntervalMin + " g Max: " + generateIntervalMax);
         }
         generateTimer--;
     }
@@ -39,8 +46,8 @@ public class AsteroidsGenerator {
         Asteroid asteroid = new Asteroid();
         asteroid.setVertices(asteroidsTemplates.get(Utils.randomRange(0, asteroidsTemplates.size() - 1)));
         asteroid.setOrigin(0.5f, 0.5f);
-        float scaleX = Utils.randomRange(100, 300);
-        float scaleY = Utils.randomRange(100, 300);
+        float scaleX = Utils.randomRange(100, 300) * scaleSize;
+        float scaleY = Utils.randomRange(100, 300) * scaleSize;
         if (ThreadLocalRandom.current().nextBoolean()) asteroid.setScale(scaleX, scaleY);
         else asteroid.setScale(scaleX, scaleX);
         int side = Utils.randomRange(1, 4);
@@ -72,8 +79,8 @@ public class AsteroidsGenerator {
         asteroid.setPosition(posX, posY);
         asteroid.setRotation(Utils.randomRange(0, 359));
         asteroid.setDirection(direction);
-        asteroid.setSpeed(3f);
-        asteroid.setRotationSpeed(0.1f);
+        asteroid.setSpeed(Utils.randomRange(1f, 3f) * scaleSpeed);
+        asteroid.setRotationSpeed(Utils.randomRange(0.1f, 0.2f));
         return asteroid;
     }
 }
